@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
+import com.example.ainote.common.web.UserId;
 
 @RestController
 @RequestMapping("/api/notes")
@@ -19,8 +20,9 @@ public class NoteController {
 
     private Long uid(HttpServletRequest req) {
         String h = req.getHeader("X-USER-ID");
-        if (h == null || !h.matches("\\d+"))
+        if (h == null || !h.matches("\\d+")) {
             throw new IllegalArgumentException("missing X-USER-ID");
+        }
         return Long.parseLong(h);
     }
 
@@ -34,12 +36,17 @@ public class NoteController {
         return svc.get(uid(r), id);
     }
 
-    @GetMapping
-    public Page<NoteDtos.Response> list(@RequestParam(required = false) String query,
+    public Page<NoteDtos.Response> list(
+            @UserId Long userId,
+            @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            HttpServletRequest r) {
-        return svc.list(uid(r), query, PageRequest.of(page, size));
+            @RequestParam(defaultValue = "10") int size) {
+        return svc.list(userId, query, PageRequest.of(page, size));
+    }
+
+    @PostMapping
+    public Long create(@UserId Long userId, @Valid @RequestBody NoteDtos.Create req) {
+        return svc.create(userId, req);
     }
 
     @PatchMapping("/{id}")
