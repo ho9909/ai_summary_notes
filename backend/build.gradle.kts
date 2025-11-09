@@ -16,9 +16,11 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
     implementation("org.flywaydb:flyway-core:10.8.1")
     implementation("org.flywaydb:flyway-database-postgresql:10.8.1")
+    implementation("com.google.code.findbugs:jsr305:3.0.2")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    
 }
 
 tasks.test { useJUnitPlatform() }
