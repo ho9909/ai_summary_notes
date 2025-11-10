@@ -5,6 +5,8 @@ import com.example.ainote.note.repo.NoteRepository;
 import com.example.ainote.summary.domain.Summary;
 import com.example.ainote.summary.repo.SummaryRepository;
 import com.example.ainote.summary.summary.Summarizer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,5 +56,36 @@ public class SummaryServiceImpl implements SummaryService {
                 summary.getTokensPrompt(),
                 summary.getTokensOutput()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LatestResp latest(Long userId, Long noteId) {
+        Note note = noteRepo.findById(noteId)
+                .orElseThrow(() -> new IllegalArgumentException("note not found"));
+        if (!note.getUserId().equals(userId))
+            throw new IllegalArgumentException("forbidden");
+
+        return summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId)
+                .map(s -> new LatestResp(
+                        s.getOneLine(), s.getParagraph(), s.getModel(), s.getStyle(),
+                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt()
+                ))
+                .orElse(null); // 컨트롤러에서 204 처리
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Item> list(Long userId, Long noteId, Pageable pageable) {
+        Note note = noteRepo.findById(noteId)
+                .orElseThrow(() -> new IllegalArgumentException("note not found"));
+        if (!note.getUserId().equals(userId))
+            throw new IllegalArgumentException("forbidden");
+
+        return summaryRepo.findByNoteIdOrderByCreatedAtDesc(noteId, pageable)
+                .map(s -> new Item(
+                        s.getId(), s.getOneLine(), s.getModel(), s.getStyle(),
+                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt()
+                ));
     }
 }
