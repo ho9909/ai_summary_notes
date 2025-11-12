@@ -25,7 +25,9 @@ public class OpenApiConfig {
   public OpenApiCustomizer addGlobalUserIdHeader() {
     return openApi -> openApi.getPaths().values()
         .forEach(path -> path.readOperations().forEach(op -> op.addParametersItem(new Parameter()
-            .in("header").required(true).name("X-USER-ID")
+            .in("header")
+            .required(true)
+            .name("X-USER-ID")
             .description("Mock user id (e.g., 1)")
             .schema(new IntegerSchema()))));
   }
