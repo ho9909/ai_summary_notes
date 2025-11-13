@@ -63,4 +63,7 @@ public class Summary {
     public int getTokensOutput() { return tokensOutput; }
     public BigDecimal getCost() { return cost; }
     public Instant getCreatedAt() { return createdAt; }
+
+
+    public void setCost(BigDecimal cost) { this.cost = cost == null ? BigDecimal.ZERO : cost; }
 }

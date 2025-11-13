@@ -5,13 +5,18 @@ import com.example.ainote.note.repo.NoteRepository;
 import com.example.ainote.summary.domain.Summary;
 import com.example.ainote.summary.repo.SummaryRepository;
 import com.example.ainote.summary.summary.Summarizer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 @Service
 public class SummaryServiceImpl implements SummaryService {
+
     private final NoteRepository noteRepo;
     private final SummaryRepository summaryRepo;
     private final Summarizer summarizer;
@@ -20,6 +25,20 @@ public class SummaryServiceImpl implements SummaryService {
         this.noteRepo = noteRepo;
         this.summaryRepo = summaryRepo;
         this.summarizer = summarizer;
+    }
+
+    @Value("${ai.costs.prompt_per_1k:0.0}")
+    private BigDecimal costPromptPer1K;
+
+    @Value("${ai.costs.output_per_1k:0.0}")
+    private BigDecimal costOutputPer1K;
+
+    private BigDecimal calcCost(int promptTokens, int outputTokens) {
+        BigDecimal p = costPromptPer1K.multiply(BigDecimal.valueOf(promptTokens))
+                .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
+        BigDecimal o = costOutputPer1K.multiply(BigDecimal.valueOf(outputTokens))
+                .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
+        return p.add(o);
     }
 
     @Override
@@ -32,29 +51,29 @@ public class SummaryServiceImpl implements SummaryService {
         if (note.getContentText() == null || note.getContentText().length() < 10)
             throw new IllegalArgumentException("content too short");
 
-        String style = (req != null && req.style() != null && !req.style().isBlank())
-                ? req.style() : "brief";
+        String style = (req != null && req.style() != null && !req.style().isBlank()) ? req.style() : "brief";
 
+        // 요약 호출
         var result = summarizer.summarize(note.getContentText(), style);
+        String modelId = summarizer.modelId();
 
-        Summary summary = new Summary(
-                note.getId(),
-                "mock-1",
-                style,
-                result.oneLine(),
-                result.paragraph(),
-                result.tokensPrompt(),
-                result.tokensOutput()
+        // 저장
+        Summary s = new Summary(
+                note.getId(), modelId, style,
+                result.oneLine(), result.paragraph(),
+                result.tokensPrompt(), result.tokensOutput()
         );
-        summaryRepo.save(summary);
+        s.setCost(calcCost(result.tokensPrompt(), result.tokensOutput()));
+        summaryRepo.save(s);
 
         return new Resp(
-                summary.getOneLine(),
-                summary.getParagraph(),
-                summary.getModel(),
-                summary.getStyle(),
-                summary.getTokensPrompt(),
-                summary.getTokensOutput()
+                s.getOneLine(),
+                s.getParagraph(),
+                s.getModel(),
+                s.getStyle(),
+                s.getTokensPrompt(),
+                s.getTokensOutput(),
+                s.getCost()
         );
     }
 
@@ -68,10 +87,16 @@ public class SummaryServiceImpl implements SummaryService {
 
         return summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId)
                 .map(s -> new LatestResp(
-                        s.getOneLine(), s.getParagraph(), s.getModel(), s.getStyle(),
-                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt()
+                        s.getOneLine(),
+                        s.getParagraph(),
+                        s.getModel(),
+                        s.getStyle(),
+                        s.getTokensPrompt(),
+                        s.getTokensOutput(),
+                        s.getCreatedAt(),
+                        s.getCost()
                 ))
-                .orElse(null); // 컨트롤러에서 204 처리
+                .orElse(null);
     }
 
     @Override
@@ -84,8 +109,14 @@ public class SummaryServiceImpl implements SummaryService {
 
         return summaryRepo.findByNoteIdOrderByCreatedAtDesc(noteId, pageable)
                 .map(s -> new Item(
-                        s.getId(), s.getOneLine(), s.getModel(), s.getStyle(),
-                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt()
+                        s.getId(),
+                        s.getOneLine(),
+                        s.getModel(),
+                        s.getStyle(),
+                        s.getTokensPrompt(),
+                        s.getTokensOutput(),
+                        s.getCreatedAt(),
+                        s.getCost()
                 ));
     }
 }

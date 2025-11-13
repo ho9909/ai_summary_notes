@@ -1,5 +1,6 @@
 package com.example.ainote.summary.summary.impl;
 
+import com.example.ainote.summary.summary.PromptTemplate;
 import com.example.ainote.summary.summary.Summarizer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -9,11 +10,6 @@ import reactor.util.retry.Retry;
 import java.time.Duration;
 import java.util.Map;
 
-/**
- * Ollama /api/generate 기반 Summarizer 구현.
- * - baseUrl: 예) http://localhost:11434
- * - model: 예) llama3.1
- */
 public class OllamaSummarizer implements Summarizer {
 
     private final WebClient web;
@@ -21,10 +17,7 @@ public class OllamaSummarizer implements Summarizer {
     private final double temperature;
     private final long timeoutMs;
 
-    public OllamaSummarizer(String baseUrl,
-                            String model,
-                            double temperature,
-                            long timeoutMs) {
+    public OllamaSummarizer(String baseUrl, String model, double temperature, long timeoutMs) {
         this.web = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
@@ -36,14 +29,11 @@ public class OllamaSummarizer implements Summarizer {
     }
 
     @Override
-    public Result summarize(String text, String style) {
-        String normalized = normalize(text);
-        String styleSafe = (style == null || style.isBlank()) ? "brief" : style.toLowerCase();
+    public String modelId() { return model; }
 
-        String prompt = (styleSafe.equals("detailed")
-                ? "Summarize as 3-5 bullet points focusing on key facts.\n\n"
-                : "Summarize as one short paragraph. The first sentence should be <= 80 chars.\n\n")
-                + "CONTENT:\n" + normalized;
+    @Override
+    public Result summarize(String text, String style) {
+        String prompt = PromptTemplate.user(style, text);
 
         Map<String, Object> payload = Map.of(
                 "model", model,
@@ -62,24 +52,14 @@ public class OllamaSummarizer implements Summarizer {
                 .retryWhen(Retry.backoff(2, Duration.ofMillis(500)).filter(ex -> true))
                 .block();
 
-        String content = (resp != null && resp.get("response") != null)
-                ? resp.get("response").toString().trim()
-                : "";
+        String content = (resp != null && resp.get("response") != null) ? resp.get("response").toString().trim() : "";
         String oneLine = firstLine(content, 80);
-
-        int pt = roughlyTokens(normalized);
+        int pt = roughlyTokens(prompt);
         int ot = roughlyTokens(content);
         return new Result(oneLine, content, pt, ot);
     }
 
-    private String normalize(String s) {
-        return s == null ? "" : s.replaceAll("\\s+", " ").trim();
-    }
-
-    private int roughlyTokens(String s) {
-        return (s == null || s.isEmpty()) ? 0 : (s.length() / 4 + 1);
-    }
-
+    private int roughlyTokens(String s) { return (s == null || s.isEmpty()) ? 0 : (s.length() / 4 + 1); }
     private String firstLine(String s, int n) {
         String f = (s == null) ? "" : s.lines().findFirst().orElse("").trim();
         return f.length() <= n ? f : s.substring(0, n);

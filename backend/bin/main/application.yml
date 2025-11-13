@@ -32,3 +32,7 @@ ai:
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
     model: ${OLLAMA_MODEL:llama3.1}
+  costs:
+    prompt_per_1k: ${AI_COST_PROMPT:0.0}
+    output_per_1k: ${AI_COST_OUTPUT:0.0}
+
