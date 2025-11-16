@@ -4,6 +4,7 @@ import com.example.ainote.note.domain.Note;
 import com.example.ainote.note.repo.NoteRepository;
 import com.example.ainote.summary.domain.Summary;
 import com.example.ainote.summary.repo.SummaryRepository;
+import com.example.ainote.summary.summary.MockSummarizer;
 import com.example.ainote.summary.summary.Summarizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 
 @Service
 public class SummaryServiceImpl implements SummaryService {
@@ -33,6 +36,12 @@ public class SummaryServiceImpl implements SummaryService {
     @Value("${ai.costs.output_per_1k:0.0}")
     private BigDecimal costOutputPer1K;
 
+    @Value("${ai.fallbackOnError:true}")
+    private boolean fallbackOnError;
+
+    @Value("${ai.cacheMinutes:10}")
+    private int cacheMinutes;
+
     private BigDecimal calcCost(int promptTokens, int outputTokens) {
         BigDecimal p = costPromptPer1K.multiply(BigDecimal.valueOf(promptTokens))
                 .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
@@ -46,35 +55,69 @@ public class SummaryServiceImpl implements SummaryService {
     public Resp summarize(Long userId, Long noteId, Req req) {
         Note note = noteRepo.findById(noteId)
                 .orElseThrow(() -> new IllegalArgumentException("note not found"));
-        if (!note.getUserId().equals(userId))
-            throw new IllegalArgumentException("forbidden");
+        if (!note.getUserId().equals(userId)) throw new IllegalArgumentException("forbidden");
         if (note.getContentText() == null || note.getContentText().length() < 10)
             throw new IllegalArgumentException("content too short");
 
-        String style = (req != null && req.style() != null && !req.style().isBlank()) ? req.style() : "brief";
+        String style = (req != null && req.style() != null && !req.style().isBlank())
+                ? req.style() : "brief";
 
-        // 요약 호출
-        var result = summarizer.summarize(note.getContentText(), style);
-        String modelId = summarizer.modelId();
+        // 1) DB 최신 요약 TTL 캐시(노트ID+스타일 기준)
+        var latestOpt = summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId);
+        if (latestOpt.isPresent()) {
+            var last = latestOpt.get();
+            boolean sameStyle = style.equalsIgnoreCase(last.getStyle());
+            boolean withinTtl = Duration.between(last.getCreatedAt(), Instant.now()).toMinutes() < cacheMinutes;
+            if (sameStyle && withinTtl) {
+                return new Resp(
+                        last.getOneLine(),
+                        last.getParagraph(),
+                        last.getModel(),
+                        last.getStyle(),
+                        last.getTokensPrompt(),
+                        last.getTokensOutput(),
+                        last.getCost()
+                );
+            }
+        }
 
-        // 저장
-        Summary s = new Summary(
-                note.getId(), modelId, style,
-                result.oneLine(), result.paragraph(),
-                result.tokensPrompt(), result.tokensOutput()
-        );
-        s.setCost(calcCost(result.tokensPrompt(), result.tokensOutput()));
-        summaryRepo.save(s);
+        // 2) 외부 요약 호출 + 저장
+        try {
+            var result = summarizer.summarize(note.getContentText(), style);
+            String modelId = summarizer.modelId();
 
-        return new Resp(
-                s.getOneLine(),
-                s.getParagraph(),
-                s.getModel(),
-                s.getStyle(),
-                s.getTokensPrompt(),
-                s.getTokensOutput(),
-                s.getCost()
-        );
+            Summary s = new Summary(
+                    note.getId(), modelId, style,
+                    result.oneLine(), result.paragraph(),
+                    result.tokensPrompt(), result.tokensOutput()
+            );
+            s.setCost(calcCost(result.tokensPrompt(), result.tokensOutput()));
+            summaryRepo.save(s);
+
+            return new Resp(
+                    s.getOneLine(), s.getParagraph(), s.getModel(), s.getStyle(),
+                    s.getTokensPrompt(), s.getTokensOutput(), s.getCost()
+            );
+
+        } catch (Exception ex) {
+            // 3) 폴백: 옵션이 켜져 있으면 MockSummarizer로 대체
+            if (!fallbackOnError) throw ex;
+
+            var mock = new MockSummarizer();
+            var result = mock.summarize(note.getContentText(), style);
+            Summary s = new Summary(
+                    note.getId(), "mock-1", style,
+                    result.oneLine(), result.paragraph(),
+                    result.tokensPrompt(), result.tokensOutput()
+            );
+            s.setCost(BigDecimal.ZERO);
+            summaryRepo.save(s);
+
+            return new Resp(
+                    s.getOneLine(), s.getParagraph(), s.getModel(), s.getStyle(),
+                    s.getTokensPrompt(), s.getTokensOutput(), s.getCost()
+            );
+        }
     }
 
     @Override
@@ -82,19 +125,12 @@ public class SummaryServiceImpl implements SummaryService {
     public LatestResp latest(Long userId, Long noteId) {
         Note note = noteRepo.findById(noteId)
                 .orElseThrow(() -> new IllegalArgumentException("note not found"));
-        if (!note.getUserId().equals(userId))
-            throw new IllegalArgumentException("forbidden");
+        if (!note.getUserId().equals(userId)) throw new IllegalArgumentException("forbidden");
 
         return summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId)
                 .map(s -> new LatestResp(
-                        s.getOneLine(),
-                        s.getParagraph(),
-                        s.getModel(),
-                        s.getStyle(),
-                        s.getTokensPrompt(),
-                        s.getTokensOutput(),
-                        s.getCreatedAt(),
-                        s.getCost()
+                        s.getOneLine(), s.getParagraph(), s.getModel(), s.getStyle(),
+                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt(), s.getCost()
                 ))
                 .orElse(null);
     }
@@ -104,19 +140,12 @@ public class SummaryServiceImpl implements SummaryService {
     public Page<Item> list(Long userId, Long noteId, Pageable pageable) {
         Note note = noteRepo.findById(noteId)
                 .orElseThrow(() -> new IllegalArgumentException("note not found"));
-        if (!note.getUserId().equals(userId))
-            throw new IllegalArgumentException("forbidden");
+        if (!note.getUserId().equals(userId)) throw new IllegalArgumentException("forbidden");
 
         return summaryRepo.findByNoteIdOrderByCreatedAtDesc(noteId, pageable)
                 .map(s -> new Item(
-                        s.getId(),
-                        s.getOneLine(),
-                        s.getModel(),
-                        s.getStyle(),
-                        s.getTokensPrompt(),
-                        s.getTokensOutput(),
-                        s.getCreatedAt(),
-                        s.getCost()
+                        s.getId(), s.getOneLine(), s.getModel(), s.getStyle(),
+                        s.getTokensPrompt(), s.getTokensOutput(), s.getCreatedAt(), s.getCost()
                 ));
     }
 }
