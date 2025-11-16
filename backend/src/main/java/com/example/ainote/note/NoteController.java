@@ -10,18 +10,29 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/notes")
 public class NoteController {
-    private final NoteService svc;
-    public NoteController(NoteService svc) { this.svc = svc; }
 
+    private final NoteService svc;
+
+    public NoteController(NoteService svc) {
+        this.svc = svc;
+    }
+
+    /** 목록: query, tag 개별/동시 필터링 */
     @GetMapping
     public Page<NoteDtos.Response> list(
             @UserId Long userId,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size
+    ) {
         var p = PageRequest.of(page, size);
-        return (tag != null && !tag.isBlank()) ? svc.listByTag(userId, tag, p) : svc.list(userId, query, p);
+        boolean hasQ = query != null && !query.isBlank();
+        boolean hasT = tag != null && !tag.isBlank();
+
+        if (hasQ && hasT) return svc.listByQueryAndTag(userId, query, tag, p);
+        if (hasT)        return svc.listByTag(userId, tag, p);
+        return svc.list(userId, hasQ ? query : null, p);
     }
 
     @PostMapping

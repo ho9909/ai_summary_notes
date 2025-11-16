@@ -6,7 +6,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NoteRepository extends JpaRepository<Note, Long> {
+
     Page<Note> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
-    Page<Note> findByUserIdAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(Long userId, String title, Pageable pageable);
-    Page<Note> findByUserIdAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(Long userId, String tag, Pageable pageable);
+
+    Page<Note> findByUserIdAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(
+            Long userId, String title, Pageable pageable
+    );
+
+    Page<Note> findByUserIdAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(
+            Long userId, String tag, Pageable pageable
+    );
+
+    // ✅ query + tag 동시 필터
+    Page<Note> findByUserIdAndTitleContainingIgnoreCaseAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(
+            Long userId, String title, String tag, Pageable pageable
+    );
 }
