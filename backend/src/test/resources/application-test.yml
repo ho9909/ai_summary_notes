@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:ainote_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+ai:
+  provider: mock
+  costs:
+    prompt_per_1k: 0.003
+    output_per_1k: 0.006
+logging:
+  level:
+    root: warn
+    org.springframework.test: info
+    com.example.ainote: debug
