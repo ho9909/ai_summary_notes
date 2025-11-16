@@ -20,8 +20,11 @@ dependencies {
     implementation("com.google.code.findbugs:jsr305:3.0.2")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2")
-     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    implementation("io.jsonwebtoken:jjwt-api:0.11.2") 
+    implementation("io.jsonwebtoken:jjwt-impl:0.11.2") 
+    implementation("io.jsonwebtoken:jjwt-jackson:0.11.2")
     
 }
 

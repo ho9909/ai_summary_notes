@@ -5,6 +5,7 @@ import App from "./App";
 import NoteList from "./pages/NoteList";
 import NoteDetail from "./pages/NoteDetail";
 import NoteForm from "./pages/NoteForm";
+import Login from "./pages/Login";
 
 const router = createBrowserRouter([
   {

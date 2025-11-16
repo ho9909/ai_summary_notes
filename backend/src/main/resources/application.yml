@@ -25,6 +25,8 @@ ai:
   provider: ${AI_PROVIDER:mock}   # mock | openai | ollama
   temperature: ${AI_TEMPERATURE:0.2}
   timeout-ms: ${AI_TIMEOUT_MS:20000}
+  fallbackOnError: ${AI_FALLBACK_ON_ERROR:true}   # 실패 시 Mock으로 폴백 여부
+  cacheMinutes: ${AI_CACHE_MINUTES:10}            # 최신 요약을 재사용할 TTL(min)
   openai:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4o-mini}
