@@ -56,34 +56,43 @@ public class SummaryServiceImpl implements SummaryService {
         Note note = noteRepo.findById(noteId)
                 .orElseThrow(() -> new IllegalArgumentException("note not found"));
         if (!note.getUserId().equals(userId)) throw new IllegalArgumentException("forbidden");
-        if (note.getContentText() == null || note.getContentText().length() < 10)
+
+        // ✅ 요약에 사용할 평문 선택 (contentText 우선, 없으면 contentMd)
+        String plain = note.getContentText() != null ? note.getContentText() : note.getContentMd();
+        if (plain == null || plain.trim().length() < 10) {
             throw new IllegalArgumentException("content too short");
+        }
 
+        // ✅ 스타일 정리
         String style = (req != null && req.style() != null && !req.style().isBlank())
-                ? req.style() : "brief";
+                ? req.style().trim() : "brief";
 
-        // 1) DB 최신 요약 TTL 캐시(노트ID+스타일 기준)
-        var latestOpt = summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId);
-        if (latestOpt.isPresent()) {
-            var last = latestOpt.get();
-            boolean sameStyle = style.equalsIgnoreCase(last.getStyle());
-            boolean withinTtl = Duration.between(last.getCreatedAt(), Instant.now()).toMinutes() < cacheMinutes;
-            if (sameStyle && withinTtl) {
-                return new Resp(
-                        last.getOneLine(),
-                        last.getParagraph(),
-                        last.getModel(),
-                        last.getStyle(),
-                        last.getTokensPrompt(),
-                        last.getTokensOutput(),
-                        last.getCost()
-                );
+        // 1) DB 최신 요약 TTL 캐시(노트ID+스타일 기준, null-safe)
+        if (cacheMinutes > 0) {
+            var latestOpt = summaryRepo.findTopByNoteIdOrderByCreatedAtDesc(noteId);
+            if (latestOpt.isPresent()) {
+                var last = latestOpt.get();
+                boolean sameStyle = style.equalsIgnoreCase(last.getStyle());
+                Instant createdAt = last.getCreatedAt();
+                boolean withinTtl = createdAt != null &&
+                        Duration.between(createdAt, Instant.now()).toMinutes() < cacheMinutes;
+                if (sameStyle && withinTtl) {
+                    return new Resp(
+                            last.getOneLine(),
+                            last.getParagraph(),
+                            last.getModel(),
+                            last.getStyle(),
+                            last.getTokensPrompt(),
+                            last.getTokensOutput(),
+                            last.getCost()
+                    );
+                }
             }
         }
 
         // 2) 외부 요약 호출 + 저장
         try {
-            var result = summarizer.summarize(note.getContentText(), style);
+            var result = summarizer.summarize(plain, style);
             String modelId = summarizer.modelId();
 
             Summary s = new Summary(
@@ -104,7 +113,7 @@ public class SummaryServiceImpl implements SummaryService {
             if (!fallbackOnError) throw ex;
 
             var mock = new MockSummarizer();
-            var result = mock.summarize(note.getContentText(), style);
+            var result = mock.summarize(plain, style);
             Summary s = new Summary(
                     note.getId(), "mock-1", style,
                     result.oneLine(), result.paragraph(),

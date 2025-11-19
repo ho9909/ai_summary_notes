@@ -5,12 +5,15 @@ import com.example.ainote.summary.summary.Summarizer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+//import org.springframework.stereotype.Component;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnProperty(name = "ai.provider", havingValue = "openai")
 public class OpenAiSummarizer implements Summarizer {
 
     private final WebClient web;

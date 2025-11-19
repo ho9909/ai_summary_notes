@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 @Entity
 @Table(name = "summaries")
 public class Summary {
@@ -20,6 +22,7 @@ public class Summary {
     @Column(nullable = false, length = 20)
     private String style;   // brief | detailed
 
+    @Lob
     @Column(name = "one_line", nullable = false, length = 300)
     private String oneLine;
 
@@ -36,8 +39,9 @@ public class Summary {
     @Column(nullable = false, precision = 10, scale = 6)
     private BigDecimal cost = BigDecimal.ZERO;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt = Instant.now();
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     protected Summary() {}
 
@@ -63,7 +67,6 @@ public class Summary {
     public int getTokensOutput() { return tokensOutput; }
     public BigDecimal getCost() { return cost; }
     public Instant getCreatedAt() { return createdAt; }
-
 
     public void setCost(BigDecimal cost) { this.cost = cost == null ? BigDecimal.ZERO : cost; }
 }

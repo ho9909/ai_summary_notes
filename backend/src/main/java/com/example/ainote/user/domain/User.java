@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 @Entity @Table(name="users")
 public class User {
     @Id
-    private Long id;             // 프리코스에선 간단히 지정(1 고정) 또는 시퀀스 가능
+    private Long id;
     @Column(nullable=false, length=50)
     private String nickname;
 

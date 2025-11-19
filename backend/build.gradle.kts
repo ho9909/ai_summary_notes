@@ -28,7 +28,14 @@ dependencies {
     
 }
 
-tasks.test { useJUnitPlatform() }
+tasks.test { useJUnitPlatform() 
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
 
 springBoot {
     mainClass.set("com.example.ainote.AinoteApplication")
@@ -45,6 +52,7 @@ tasks.withType<Test> {
     systemProperty("file.encoding", "UTF-8")
     systemProperty("sun.jnu.encoding", "UTF-8")
 }
+
 
 sourceSets {
     named("main") {

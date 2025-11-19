@@ -1,11 +1,12 @@
 package com.example.ainote.summary.summary;
 
-import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+//import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-@Component
+@ConditionalOnProperty(name = "ai.provider", havingValue = "mock", matchIfMissing = true)
 public class MockSummarizer implements Summarizer {
 
     @Override

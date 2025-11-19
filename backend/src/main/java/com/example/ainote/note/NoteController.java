@@ -21,10 +21,10 @@ public class NoteController {
     @GetMapping
     public Page<NoteDtos.Response> list(
             @UserId Long userId,
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) String tag,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(value = "query", required = false) String query,
+            @RequestParam(value = "tag", required = false) String tag,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size
     ) {
         var p = PageRequest.of(page, size);
         boolean hasQ = query != null && !query.isBlank();
@@ -32,26 +32,26 @@ public class NoteController {
 
         if (hasQ && hasT) return svc.listByQueryAndTag(userId, query, tag, p);
         if (hasT)        return svc.listByTag(userId, tag, p);
-        return svc.list(userId, hasQ ? query : null, p);
+        return svc.list(userId, query, tag, PageRequest.of(page, size));
     }
 
-    @PostMapping
+    @PostMapping(consumes = "application/json")
     public Long create(@UserId Long userId, @Valid @RequestBody NoteDtos.Create req) {
         return svc.create(userId, req);
     }
 
     @GetMapping("/{id}")
-    public NoteDtos.Response detail(@UserId Long userId, @PathVariable Long id) {
+    public NoteDtos.Response detail(@UserId Long userId, @PathVariable("id") Long id) {
         return svc.detail(userId, id);
     }
 
-    @PatchMapping("/{id}")
-    public void update(@UserId Long userId, @PathVariable Long id, @Valid @RequestBody NoteDtos.Update req) {
+    @PatchMapping(value = "/{id}", consumes = "application/json")
+    public void update(@UserId Long userId, @PathVariable("id") Long id, @Valid @RequestBody NoteDtos.Update req) {
         svc.update(userId, id, req);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@UserId Long userId, @PathVariable Long id) {
+    public void delete(@UserId Long userId, @PathVariable("id")  Long id) {
         svc.delete(userId, id);
     }
 }

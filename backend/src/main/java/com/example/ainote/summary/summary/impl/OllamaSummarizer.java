@@ -6,10 +6,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.util.retry.Retry;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+//import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Map;
 
+@ConditionalOnProperty(name = "ai.provider", havingValue = "ollama")
 public class OllamaSummarizer implements Summarizer {
 
     private final WebClient web;

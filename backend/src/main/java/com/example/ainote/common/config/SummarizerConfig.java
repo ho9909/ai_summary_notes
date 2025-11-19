@@ -1,4 +1,4 @@
-package com.example.ainote.common.config;
+/*package com.example.ainote.common.config;
 
 import com.example.ainote.summary.summary.MockSummarizer;
 import com.example.ainote.summary.summary.Summarizer;
@@ -30,4 +30,4 @@ public class SummarizerConfig {
       default -> new MockSummarizer();
     };
   }
-}
+}*/

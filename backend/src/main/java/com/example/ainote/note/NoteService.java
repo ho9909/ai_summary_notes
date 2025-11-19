@@ -6,11 +6,10 @@ import org.springframework.data.domain.Pageable;
 
 public interface NoteService {
 
-    Page<NoteDtos.Response> list(Long userId, String query, Pageable pageable);
+    Page<NoteDtos.Response> list(Long userId, String query, String tag, Pageable pageable);
 
     Page<NoteDtos.Response> listByTag(Long userId, String tag, Pageable pageable);
 
-    // ✅ query + tag 동시 필터
     Page<NoteDtos.Response> listByQueryAndTag(Long userId, String query, String tag, Pageable pageable);
 
     Long create(Long userId, NoteDtos.Create req);
