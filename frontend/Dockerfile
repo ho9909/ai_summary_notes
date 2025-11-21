@@ -1,7 +1,8 @@
 FROM node:20 AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install \
+    && npm install @rollup/rollup-linux-x64-gnu --save-optional
 COPY . .
 RUN npm run build
 

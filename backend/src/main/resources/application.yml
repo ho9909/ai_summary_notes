@@ -22,7 +22,7 @@ spring:
       path: /h2-console
 
 ai:
-  provider: ${AI_PROVIDER:mock}   # mock | openai | ollama
+  provider: gemini   # mock | openai | ollama | gemini
   temperature: ${AI_TEMPERATURE:0.2}
   timeout-ms: ${AI_TIMEOUT_MS:20000}
   fallbackOnError: ${AI_FALLBACK_ON_ERROR:true}   # 실패 시 Mock으로 폴백 여부
@@ -37,4 +37,9 @@ ai:
   costs:
     prompt_per_1k: ${AI_COST_PROMPT:0.0}
     output_per_1k: ${AI_COST_OUTPUT:0.0}
+  gemini:
+    api-key: ${GEMINI_API_KEY:AIzaSyAxSaGzNyW3udJIe2M6IGwvnqeIOmLzYms}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
 
+    
